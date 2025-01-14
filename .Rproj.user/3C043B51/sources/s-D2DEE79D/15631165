@@ -1,0 +1,26 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1736864978029.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "2549313280",
+    "id" : "15631165",
+    "lastKnownWriteTime" : 1736865146,
+    "last_content_update" : 1736865146403,
+    "path" : "C:/Users/52998/Desktop/golub/Data Management.R",
+    "project_path" : "Data Management.R",
+    "properties" : {
+        "cursorPosition" : "2,11",
+        "scrollLine" : "0",
+        "tempName" : "Untitled1"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}
