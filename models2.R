@@ -122,7 +122,37 @@ plot(lasso_model)
 
 # Coefficients at the best lambda
 lasso_coefficients <- coef(lasso_model, s = lasso_model$lambda.min)
-lasso_coefficients  # Displays coefficients for each class (allB, allT, aml)
+# lasso_coefficients  # Displays coefficients for each class (allB, allT, aml)
+
+# Combine coefficients for all classes
+lasso_results <- lapply(names(lasso_coefficients), function(class) {
+  coef_matrix <- as.matrix(lasso_coefficients[[class]])
+  coef_df <- data.frame(
+    Gene_Probe = rownames(coef_matrix),
+    Coefficient = coef_matrix[, 1],
+    Class = class
+  )
+  return(coef_df)
+})
+
+# Combine results for all classes
+lasso_results_df <- bind_rows(lasso_results)
+
+# Filter for non-zero coefficients
+non_zero_coefficients <- lasso_results_df %>%
+  filter(Coefficient != 0)
+
+# Count unique gene probes
+unique_genes <- non_zero_coefficients %>%
+  distinct(Gene_Probe) %>%
+  nrow()
+
+# Print unique gene probes and their counts
+print(paste("Number of unique gene probes:", unique_genes))
+
+# View non-zero coefficients with classes
+print(non_zero_coefficients)
+
 
 #fit ridge model
 # Fit multinomial ridge regression
