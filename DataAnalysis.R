@@ -5,7 +5,7 @@ library(corrplot)
 library(dplyr)
 library(reshape2)
 
-golub_data <- read.csv("golub.csv")
+golub_data <- read.csv("data/golub.csv")
 
 summary(golub_data)
 dim(golub_data) # 72 7135
