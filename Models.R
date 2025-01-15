@@ -19,7 +19,7 @@ data$Source <- as.numeric(factor(data$Source))
 # Separate gene expressions and additional variables
 # Assuming "cancer" is the target classification column
 gene_data <- data %>% select(-BM.PB, -Gender, -Source, -tissue.mf, -cancer)
-additional_features <- data %>% select(BM.PB, Gender, Source, tissue.mf)
+#additional_features <- data %>% select(BM.PB, Gender, Source, tissue.mf)
 target <- data$cancer
 
 #STEP 4: Perfrom PCA on Gene expression Data
@@ -36,6 +36,7 @@ fviz_eig(pca_result, addlabels = TRUE, ylim = c(0, 100))
 pca_data <- as.data.frame(pca_result$x[, 1:10])  # Adjust the number of PCs as needed
 
 # Add additional features and target variable
+final_data <- cbind(pca_data, cancer = as.factor(target))
 final_data <- cbind(pca_data, additional_features, cancer = as.factor(target))
 
 #STEP 5: Fit classification Model
@@ -47,9 +48,10 @@ summary(svm_model)
 
 #STEP 6: Evaluate the Model
 # Predict on the same data
-predictions <- predict(svm_model, final_data)
+predictions <- predict(svm_model, newdata = final_data)
 
 # Confusion matrix and accuracy
+# Create confusion matrix
 confusion <- table(Predicted = predictions, Actual = final_data$cancer)
 print(confusion)
 

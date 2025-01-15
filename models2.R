@@ -1,0 +1,161 @@
+#STEP 1: LOAD REQUIRED LIBRARIES
+# Install necessary packages if not already installed
+install.packages(c("tidyverse", "factoextra", "caret", "e1071", "glmnet"))
+
+# Load the libraries
+library(tidyverse)    # Data manipulation and visualization
+library(factoextra)   # PCA visualization
+library(caret)        # Machine learning framework
+library(e1071)        # SVM modeling
+library(glmnet)       # Lasso and Ridge regression
+
+#STEP 2: LOAD THE DATA
+data <- read.csv("data/golub.csv", row.names = 1)
+
+#obtain only gene data
+gene_data <- data %>% select(-BM.PB, -Gender, -Source, -tissue.mf, -cancer)
+#obtain target vector
+target <- data$cancer
+
+#STEP 3: PERFORM PCA FOR DIMENSIONAL REDUCTION
+
+#Principal Component Analysis (PCA) reduces high-dimensional data into fewer dimensions 
+#(principal components, PCs) while retaining the maximum variance. 
+#This simplifies the data for classification and visualization.
+
+# Perform PCA
+pca_result <- prcomp(gene_data, center = TRUE, scale. = TRUE)
+
+# Summary of PCA
+summary(pca_result)
+
+# Scree plot to visualize explained variance
+fviz_eig(pca_result, addlabels = TRUE, ylim = c(0, 100))
+
+# The scree plot shows how much variance each principal component explains.
+# Choose enough PCs to explain ~90% of the variance.
+
+# Retain the top 10 PCs
+pca_data <- as.data.frame(pca_result$x[, 1:10])
+
+# Add the cancer classification to the PCA-transformed data
+pca_data$cancer <- as.factor(data$cancer)
+
+# STEP 4: CLASSIFICATION USING SVM
+
+#Why SVM?
+#Support Vector Machines (SVM) are powerful for high-dimensional data, particularly with a linear kernel
+#SVM aims to find the hyperplane that best separates classes
+
+# Fit SVM model
+svm_model <- svm(cancer ~ ., data = pca_data, kernel = "linear")
+
+# Display model details
+summary(svm_model)
+
+#view coefficients
+# Extract SVM weights for linear kernel
+svm_weights <- t(svm_model$coefs) %*% svm_model$SV
+
+# Display weights
+print(svm_weights)
+
+#The weights indicate the contribution of each principal component to the classification.
+
+#Evaluate SVM model
+# Predict on the same data
+predictions <- predict(svm_model, newdata = pca_data)
+
+# Confusion matrix and accuracy
+confusion <- table(Predicted = predictions, Actual = pca_data$cancer)
+print(confusion)
+
+accuracy <- sum(diag(confusion)) / sum(confusion)
+print(paste("Accuracy:", round(accuracy * 100, 2), "%"))
+
+# Extract coefficients for all support vectors
+svm_weights <- t(svm_model$coefs) %*% svm_model$SV
+
+# Convert to a data frame
+svm_weights_df <- as.data.frame(svm_weights)
+
+# Assign PCs as feature names
+colnames(svm_weights_df) <- paste0("PC", 1:ncol(svm_weights))
+
+# Add a column for class or decision boundary
+svm_weights_df$Class <- rownames(svm_weights_df)
+
+# Reshape for visualization
+svm_weights_long <- pivot_longer(svm_weights_df, cols = starts_with("PC"), 
+                                 names_to = "Principal Component", 
+                                 values_to = "Weight")
+
+# Plot weights by PC
+library(ggplot2)
+ggplot(svm_weights_long, aes(x = `Principal Component`, y = Weight, fill = Class)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  theme_minimal() +
+  labs(title = "SVM Weights Across Principal Components",
+       x = "Principal Component",
+       y = "Weight") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+#STEP 5: CLASSIFICATION USING LASSO AND RIDGE REGRESSION
+
+#Lasso Regression adds an L1 penalty, shrinking less important coefficients to zero,
+#enabling feature selection.
+
+#Ridge Regression adds an L2 penalty, shrinking all coefficients but retaining them,
+#which reduces multicollinearity.
+
+#prepare data for glmnet
+# Prepare matrix input for glmnet
+x <- as.matrix(gene_data)
+y <- as.factor(data$cancer)
+
+#fit lasso model
+# Fit multinomial lasso regression
+lasso_model <- cv.glmnet(x, y, alpha = 1, family = "multinomial")
+
+# Plot cross-validation curve
+plot(lasso_model)
+
+# Coefficients at the best lambda
+lasso_coefficients <- coef(lasso_model, s = lasso_model$lambda.min)
+lasso_coefficients  # Displays coefficients for each class (allB, allT, aml)
+
+#fit ridge model
+# Fit multinomial ridge regression
+ridge_model <- cv.glmnet(x, y, alpha = 0, family = "multinomial")
+
+# Plot cross-validation curve
+plot(ridge_model)
+
+# Coefficients at the best lambda
+ridge_coefficients <- coef(ridge_model, s = ridge_model$lambda.min)
+ridge_coefficients  # Displays coefficients for each class (allB, allT, aml)
+
+#STEP 6: EVALUATE LASSO AND RIDGE MODELS
+
+#predict and evaluate lasso
+# Predict using lasso
+lasso_predictions <- predict(lasso_model, newx = x, s = lasso_model$lambda.min, type = "class")
+
+# Confusion matrix and accuracy
+lasso_confusion <- table(Predicted = lasso_predictions, Actual = y)
+print(lasso_confusion)
+
+lasso_accuracy <- sum(diag(lasso_confusion)) / sum(lasso_confusion)
+print(paste("Lasso Accuracy:", round(lasso_accuracy * 100, 2), "%"))
+
+#predict and evaluate ridge
+# Predict using ridge
+ridge_predictions <- predict(ridge_model, newx = x, s = ridge_model$lambda.min, type = "class")
+
+# Confusion matrix and accuracy
+ridge_confusion <- table(Predicted = ridge_predictions, Actual = y)
+print(ridge_confusion)
+
+ridge_accuracy <- sum(diag(ridge_confusion)) / sum(ridge_confusion)
+print(paste("Ridge Accuracy:", round(ridge_accuracy * 100, 2), "%"))
+
