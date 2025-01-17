@@ -216,7 +216,37 @@ plot(lasso_model)
 
 # Coefficients at the best lambda
 lasso_coefficients <- coef(lasso_model, s = lasso_model$lambda.min)
-lasso_coefficients  # Displays coefficients for each class (allB, allT, aml)
+# lasso_coefficients  # Displays coefficients for each class (allB, allT, aml)
+
+# Combine coefficients for all classes
+lasso_results <- lapply(names(lasso_coefficients), function(class) {
+  coef_matrix <- as.matrix(lasso_coefficients[[class]])
+  coef_df <- data.frame(
+    Gene_Probe = rownames(coef_matrix),
+    Coefficient = coef_matrix[, 1],
+    Class = class
+  )
+  return(coef_df)
+})
+
+# Combine results for all classes
+lasso_results_df <- bind_rows(lasso_results)
+
+# Filter for non-zero coefficients
+non_zero_coefficients <- lasso_results_df %>%
+  filter(Coefficient != 0)
+
+# Count unique gene probes
+unique_genes <- non_zero_coefficients %>%
+  distinct(Gene_Probe) %>%
+  nrow()
+
+# Print unique gene probes and their counts
+print(paste("Number of unique gene probes:", unique_genes))
+
+# View non-zero coefficients with classes
+print(non_zero_coefficients)
+
 
 #fit ridge model
 # Fit multinomial ridge regression
@@ -227,7 +257,42 @@ plot(ridge_model)
 
 # Coefficients at the best lambda
 ridge_coefficients <- coef(ridge_model, s = ridge_model$lambda.min)
-ridge_coefficients  # Displays coefficients for each class (allB, allT, aml)
+
+# Combine coefficients for all classes into a single data frame
+coefficients_df <- do.call(rbind, lapply(1:length(ridge_coefficients), function(i) {
+  coef_data <- as.data.frame(as.matrix(ridge_coefficients[[i]]))
+  coef_data$Gene <- rownames(coef_data)
+  coef_data$Class <- names(ridge_coefficients)[i]
+  colnames(coef_data)[1] <- "Coefficient"
+  coef_data
+}))
+
+# Filter out the intercept and rank by absolute coefficient value
+coefficients_df <- coefficients_df[coefficients_df$Gene != "(Intercept)", ]
+coefficients_df$AbsCoefficient <- abs(coefficients_df$Coefficient)
+top_coefficients <- coefficients_df %>%
+  arrange(desc(AbsCoefficient)) %>%
+  group_by(Gene) %>%
+  slice_max(order_by = AbsCoefficient, n = 1) %>%
+  ungroup() %>%
+  arrange(desc(AbsCoefficient))
+
+# Display the top 20 most influential coefficients
+top_coefficients <- head(top_coefficients, 20)
+
+# Print results
+print(top_coefficients)
+
+# Visualize the top coefficients
+ggplot(top_coefficients, aes(x = reorder(Gene, -AbsCoefficient), y = Coefficient, fill = Class)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  coord_flip() +
+  labs(
+    title = "Top 20 Most Influential Coefficients in Ridge Regression",
+    x = "Gene",
+    y = "Coefficient"
+  ) +
+  theme_minimal()
 
 #STEP 6: EVALUATE LASSO AND RIDGE MODELS
 
