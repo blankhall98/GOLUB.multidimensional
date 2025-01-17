@@ -253,3 +253,114 @@ print(ridge_confusion)
 ridge_accuracy <- sum(diag(ridge_confusion)) / sum(ridge_confusion)
 print(paste("Ridge Accuracy:", round(ridge_accuracy * 100, 2), "%"))
 
+##### code for report
+
+## Coefficient Paths for Lasso and Ridge Regression
+# Plot coefficient paths for Lasso
+plot(lasso_model$glmnet.fit, xvar = "lambda", label = TRUE)
+title("Lasso Coefficient Paths", line = 2.5)
+
+# Plot coefficient paths for Ridge
+plot(ridge_model$glmnet.fit, xvar = "lambda", label = TRUE)
+title("Ridge Coefficient Paths", line = 2.5)
+
+##Top Features Selected by Lasso
+# Extract coefficients for each class from Lasso
+lasso_coefs_list <- lasso_coefficients
+
+# Combine coefficients into a single data frame
+lasso_coefs_df <- do.call(cbind, lapply(lasso_coefs_list, as.matrix))
+colnames(lasso_coefs_df) <- names(lasso_coefs_list)  # Add class names as column names
+
+# Remove the intercept row
+lasso_coefs_df <- lasso_coefs_df[!rownames(lasso_coefs_df) %in% "(Intercept)", ]
+
+# Identify top features based on mean coefficient magnitude across classes
+lasso_top_features <- as.data.frame(lasso_coefs_df) %>%
+  rownames_to_column(var = "Feature") %>%
+  pivot_longer(cols = -Feature, names_to = "Class", values_to = "Coefficient") %>%
+  group_by(Feature) %>%
+  summarize(Mean_Coefficient = mean(abs(Coefficient))) %>%
+  arrange(desc(Mean_Coefficient))
+
+# Display top 10 features
+head(lasso_top_features, 10)
+
+# Plot top features
+ggplot(head(lasso_top_features, 10), aes(x = reorder(Feature, Mean_Coefficient), y = Mean_Coefficient)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  coord_flip() +
+  theme_minimal() +
+  labs(title = "Top Features Selected by Lasso Regression (Excluding Intercept)",
+       x = "Feature",
+       y = "Mean Coefficient Across Classes")
+## top features retained by ridge
+# Extract coefficients for each class from Ridge
+ridge_coefs_list <- ridge_coefficients
+
+# Combine coefficients into a single data frame
+ridge_coefs_df <- do.call(cbind, lapply(ridge_coefs_list, as.matrix))
+colnames(ridge_coefs_df) <- names(ridge_coefs_list)  # Add class names as column names
+
+# Remove the intercept row
+ridge_coefs_df <- ridge_coefs_df[!rownames(ridge_coefs_df) %in% "(Intercept)", ]
+
+# Identify top features based on mean coefficient magnitude across classes
+ridge_top_features <- as.data.frame(ridge_coefs_df) %>%
+  rownames_to_column(var = "Feature") %>%
+  pivot_longer(cols = -Feature, names_to = "Class", values_to = "Coefficient") %>%
+  group_by(Feature) %>%
+  summarize(Mean_Coefficient = mean(abs(Coefficient))) %>%
+  arrange(desc(Mean_Coefficient))
+
+# Display top 10 features
+head(ridge_top_features, 10)
+
+# Plot top features
+ggplot(head(ridge_top_features, 10), aes(x = reorder(Feature, Mean_Coefficient), y = Mean_Coefficient)) +
+  geom_bar(stat = "identity", fill = "darkred") +
+  coord_flip() +
+  theme_minimal() +
+  labs(title = "Top Features Retained by Ridge Regression (Excluding Intercept)",
+       x = "Feature",
+       y = "Mean Coefficient Across Classes")
+
+## Confusion matrix and heatmap
+# Convert Lasso confusion matrix to a data frame
+lasso_confusion_df <- as.data.frame(as.table(lasso_confusion))
+lasso_confusion_df <- lasso_confusion_df %>%
+  mutate(Percentage = Freq / sum(Freq) * 100)
+
+# Plot Lasso confusion matrix heatmap
+ggplot(lasso_confusion_df, aes(x = Predicted, y = Actual, fill = Percentage)) +
+  geom_tile() +
+  geom_text(aes(label = sprintf("%.1f%%", Percentage)), color = "white") +
+  theme_minimal() +
+  labs(title = "Lasso Confusion Matrix Heatmap",
+       x = "Predicted Class",
+       y = "Actual Class",
+       fill = "Percentage")
+
+##Ridge confusion heatmap
+# Convert Ridge confusion matrix to a data frame
+ridge_confusion_df <- as.data.frame(as.table(ridge_confusion))
+ridge_confusion_df <- ridge_confusion_df %>%
+  mutate(Percentage = Freq / sum(Freq) * 100)
+
+# Plot Ridge confusion matrix heatmap
+ggplot(ridge_confusion_df, aes(x = Predicted, y = Actual, fill = Percentage)) +
+  geom_tile() +
+  geom_text(aes(label = sprintf("%.1f%%", Percentage)), color = "white") +
+  theme_minimal() +
+  labs(title = "Ridge Confusion Matrix Heatmap",
+       x = "Predicted Class",
+       y = "Actual Class",
+       fill = "Percentage")
+
+# Plot cross-validation curve for Lasso
+plot(lasso_model)
+title("Lasso Cross-Validation Performance")
+
+# Plot cross-validation curve for Ridge
+plot(ridge_model)
+title("Ridge Cross-Validation Performance")
